@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Okount status</title>
+<meta name="description" content="Whether the Okount app, sign-in, database and server tasks are working right now.">
+<style>
+  :root {
+    --bg: #FBF7FC; --card: #FFFFFF; --text: #1F1B24; --text2: #62576A; --line: #E8E0EC;
+    --up: #2E7D4F; --slow: #B7791F; --down: #C2410C; --planned: #A79DAE; --empty: #EDE7F0; --accent: #3B1F45;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151118; --card: #1F1A23; --text: #F3EEF5; --text2: #B3A8BA; --line: #342C3A;
+      --up: #4ADE80; --slow: #FBBF24; --down: #FB923C; --planned: #6B6172; --empty: #2B2430; --accent: #E9D5FF; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--text2); font-size: 13px; margin: 0 0 20px; }
+  .banner { border-radius: 14px; padding: 18px 20px; font-weight: 700; font-size: 17px; color: #fff; margin-bottom: 24px; }
+  .banner small { display: block; font-weight: 400; font-size: 13px; opacity: .9; margin-top: 2px; }
+  .operational { background: var(--up); } .degraded { background: var(--slow); } .partial, .major { background: var(--down); }
+  @media (prefers-color-scheme: dark) { .banner { color: #111; } }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 16px; overflow: hidden; }
+  section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--text2); margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .svc { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .svc:last-child { border-bottom: 0; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .name { font-weight: 600; flex: 1; min-width: 0; }
+  .state { font-size: 13px; color: var(--text2); text-align: right; }
+  .bars { display: flex; gap: 2px; margin-top: 8px; height: 24px; }
+  .bars i { flex: 1; border-radius: 2px; background: var(--empty); min-width: 2px; }
+  .legend { display: flex; justify-content: space-between; font-size: 11px; color: var(--text2); margin-top: 4px; }
+  .incident { padding: 12px 16px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .incident:last-child { border-bottom: 0; }
+  .muted { color: var(--text2); font-size: 13px; }
+  a { color: var(--accent); }
+  footer { color: var(--text2); font-size: 12px; margin-top: 24px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Okount status</h1>
+  <p class="sub" id="checked">Loading…</p>
+  <div class="banner" id="banner">Checking…</div>
+  <div id="groups"></div>
+  <section><h2>Past outages</h2><div id="incidents"><div class="incident muted">None.</div></div></section>
+  <footer id="note"></footer>
+</main>
+<script>
+const COLOR = { up: 'var(--up)', slow: 'var(--slow)', down: 'var(--down)', planned: 'var(--planned)' };
+const WORD = { up: 'Working', slow: 'Slow', down: 'Not working', planned: 'Not live yet' };
+const HEAD = {
+  operational: ['Everything is working', 'Billing, sign-in and the database are answering normally.'],
+  degraded: ['Working, but slow', 'Some services are answering slowly.'],
+  partial: ['Some services are not working', 'Billing keeps working on the phone and syncs when the service is back.'],
+  major: ['Okount is down', 'Bills made now are kept on the phone and sync when it is back.'],
+};
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const when = (iso) => new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const mins = (a, b) => Math.max(1, Math.round((new Date(b) - new Date(a)) / 60000));
+
+async function load() {
+  const get = (f) => fetch(`data/${f}?t=${Date.now()}`).then((r) => r.json());
+  const [status, history, incidents] = await Promise.all([get('status.json'), get('history.json'), get('incidents.json')]);
+  document.getElementById('checked').textContent = `Last checked ${when(status.checkedAt)} · refreshes every 5 minutes`;
+  const [h, sub] = HEAD[status.overall] || HEAD.operational;
+  const b = document.getElementById('banner');
+  b.className = `banner ${status.overall}`;
+  b.innerHTML = `${esc(h)}<small>${esc(sub)}</small>`;
+  document.getElementById('note').textContent = status.note || '';
+
+  const days = [...Array(90)].map((_, i) => new Date(Date.now() - (89 - i) * 864e5).toISOString().slice(0, 10));
+  const groups = {};
+  for (const s of status.services) (groups[s.group] ??= []).push(s);
+  document.getElementById('groups').innerHTML = Object.entries(groups).map(([g, list]) => `
+    <section><h2>${esc(g)}</h2>${list.map((s) => {
+      const hist = history[s.id] || {};
+      const tracked = days.filter((d) => hist[d]);
+      const up = tracked.reduce((n, d) => n + hist[d].up, 0), all = tracked.reduce((n, d) => n + hist[d].checks, 0);
+      const pct = all ? `${(100 * up / all).toFixed(2)}% up` : '';
+      const bars = s.shown === 'planned' ? '' : `<div class="bars" aria-hidden="true">${days.map((d) => {
+        const x = hist[d]; if (!x) return '<i></i>';
+        const r = x.up / x.checks;
+        return `<i title="${d}: ${(r * 100).toFixed(1)}% up" style="background:${r >= 0.999 ? 'var(--up)' : r >= 0.95 ? 'var(--slow)' : 'var(--down)'}"></i>`;
+      }).join('')}</div><div class="legend"><span>90 days ago</span><span>${pct}</span><span>Today</span></div>`;
+      const detail = s.shown === 'planned' ? esc(s.note) : s.shown === 'down' ? esc(s.note) : s.ms != null ? `${s.ms} ms` : '';
+      return `<div class="svc"><div class="row"><span class="dot" style="background:${COLOR[s.shown]}"></span>
+        <span class="name">${esc(s.name)}</span><span class="state">${WORD[s.shown]}${detail ? ` · ${detail}` : ''}</span></div>${bars}</div>`;
+    }).join('')}</section>`).join('');
+
+  if (incidents.length) {
+    document.getElementById('incidents').innerHTML = incidents.slice(0, 20).map((i) => `
+      <div class="incident"><strong>${esc(i.name)}</strong> ${i.resolvedAt ? `was down for ${mins(i.startedAt, i.resolvedAt)} min` : '<strong style="color:var(--down)">is down now</strong>'}
+      <div class="muted">${when(i.startedAt)}${i.cause ? ` · ${esc(i.cause)}` : ''}${i.issue ? ` · <a href="https://github.com/gourav0O7/okount-status/issues/${i.issue}">details</a>` : ''}</div></div>`).join('');
+  }
+}
+load().catch(() => { document.getElementById('banner').textContent = 'Could not load the status. Try again in a minute.'; });
+setInterval(() => load().catch(() => {}), 60000);
+</script>
+</body>
+</html>
