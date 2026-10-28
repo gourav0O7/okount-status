@@ -64,7 +64,10 @@ const when = (iso) => new Date(iso).toLocaleString(undefined, { day: 'numeric', 
 const mins = (a, b) => Math.max(1, Math.round((new Date(b) - new Date(a)) / 60000));
 
 async function load() {
-  const get = (f) => fetch(`data/${f}?t=${Date.now()}`).then((r) => r.json());
+  // Results are read straight from the repo, which the checker updates every 5 minutes;
+  // the published copy next to this page only refreshes when the page itself is rebuilt.
+  const RAW = 'https://raw.githubusercontent.com/gourav0O7/okount-status/main/data/';
+  const get = (f) => fetch(`${RAW}${f}?t=${Date.now()}`).then((r) => r.json()).catch(() => fetch(`data/${f}`).then((r) => r.json()));
   const [status, history, incidents] = await Promise.all([get('status.json'), get('history.json'), get('incidents.json')]);
   document.getElementById('checked').textContent = `Last checked ${when(status.checkedAt)} · refreshes every 5 minutes`;
   const [h, sub] = HEAD[status.overall] || HEAD.operational;
