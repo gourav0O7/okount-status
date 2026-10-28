@@ -1,0 +1,43 @@
+name: Keep checking
+
+# GitHub starts scheduled jobs on a quiet repo only every few hours, whatever
+# the cron says. So this run keeps checking every 5 minutes for almost six
+# hours (the job limit), and the hourly schedule starts the next one; one that
+# arrives while a run is going waits for it. status.yml still rebuilds the page.
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: keep-checking
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check every service every 5 minutes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "okount-status"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          end=$(( $(date +%s) + 340*60 ))
+          while [ "$(date +%s)" -lt "$end" ]; do
+            git pull --rebase -q || true
+            node check.mjs || true
+            git add data
+            git diff --cached --quiet || git commit -m "Status $(date -u +%H:%M)" -q
+            git push -q || (git pull --rebase -q && git push -q) || true
+            sleep 300
+          done
