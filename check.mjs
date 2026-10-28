@@ -8,17 +8,12 @@
 // the issue is closed when the service is back. Without GITHUB_TOKEN (a local
 // run) it only writes the files.
 //
-// On GitHub Actions it keeps going: a check every 5 minutes for almost six
-// hours, saving after each one. GitHub starts scheduled jobs on a quiet repo
-// only every few hours, so one long run is what makes "every 5 minutes" true.
-// Run locally, it checks once.
+// One round per call. The every-5-minutes loop lives in
+// .github/workflows/checks.yml ("Keep checking"); status.yml rebuilds the page.
 //
 // Node 20+, no dependencies.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { execSync } from 'node:child_process';
 
-const EVERY_MS = 5 * 60 * 1000;
-const RUN_FOR_MS = 340 * 60 * 1000;
 
 const TIMEOUT_MS = 10000;
 const SLOW_MS = 3000;
@@ -114,27 +109,4 @@ async function once() {
   console.log(overall, services.map((s) => `${s.id}:${s.shown}${s.code ? `(${s.code}, ${s.ms}ms)` : ''}`).join(' '));
 }
 
-function save() {
-  const sh = (c) => execSync(c, { stdio: 'pipe' }).toString();
-  try {
-    sh('git add data');
-    try { sh('git diff --cached --quiet'); return; } catch { /* something to commit */ }
-    sh(`git -c user.name=okount-status -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit -q -m "Status ${new Date().toISOString().slice(11, 16)}"`);
-    try { sh('git push -q'); } catch { sh('git pull --rebase -q'); sh('git push -q'); }
-  } catch (e) {
-    console.log('could not save this round:', String(e?.message ?? e).split('\n')[0]);
-  }
-}
-
-if (process.env.GITHUB_ACTIONS === 'true') {
-  const end = Date.now() + RUN_FOR_MS;
-  while (Date.now() < end) {
-    try { await once(); } catch (e) { console.log('check failed:', e?.message ?? e); }
-    save();
-    if (Date.now() + EVERY_MS > end) break;
-    await new Promise((r) => setTimeout(r, EVERY_MS));
-    try { execSync('git pull --rebase -q', { stdio: 'pipe' }); } catch { /* next save retries */ }
-  }
-} else {
-  await once();
-}
+await once();
