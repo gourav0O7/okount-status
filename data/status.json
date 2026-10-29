@@ -1,6 +1,6 @@
 {
-  "checkedAt": "2026-10-29T19:39:09.477Z",
-  "overall": "degraded",
+  "checkedAt": "2026-10-29T19:44:15.186Z",
+  "overall": "operational",
   "title": "Okount status",
   "note": "Checked from GitHub every 5 minutes. Any answer below 500 counts as up: a sign-in service that says 'not signed in' is working.",
   "services": [
@@ -12,7 +12,7 @@
       "shown": "up",
       "fails": 0,
       "code": 200,
-      "ms": 333,
+      "ms": 174,
       "note": null
     },
     {
@@ -23,7 +23,7 @@
       "shown": "up",
       "fails": 0,
       "code": 200,
-      "ms": 278,
+      "ms": 2981,
       "note": null
     },
     {
@@ -41,11 +41,11 @@
       "id": "database",
       "name": "Database",
       "group": "Backend",
-      "state": "slow",
-      "shown": "slow",
+      "state": "up",
+      "shown": "up",
       "fails": 0,
       "code": 401,
-      "ms": 3143,
+      "ms": 659,
       "note": null
     },
     {
@@ -56,7 +56,7 @@
       "shown": "up",
       "fails": 0,
       "code": 401,
-      "ms": 1629,
+      "ms": 778,
       "note": null
     },
     {
@@ -67,7 +67,7 @@
       "shown": "up",
       "fails": 0,
       "code": 200,
-      "ms": 1660,
+      "ms": 895,
       "note": null
     },
     {
