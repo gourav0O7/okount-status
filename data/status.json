@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-10-31T07:25:23.036Z",
+  "checkedAt": "2026-10-31T07:30:24.636Z",
   "overall": "operational",
   "title": "Okount status",
   "note": "Checked from GitHub every 5 minutes. Any answer below 500 counts as up: a sign-in service that says 'not signed in' is working.",
@@ -12,7 +12,7 @@
       "shown": "up",
       "fails": 0,
       "code": 200,
-      "ms": 110,
+      "ms": 106,
       "note": null
     },
     {
@@ -23,7 +23,7 @@
       "shown": "up",
       "fails": 0,
       "code": 200,
-      "ms": 64,
+      "ms": 74,
       "note": null
     },
     {
@@ -67,7 +67,7 @@
       "shown": "up",
       "fails": 0,
       "code": 200,
-      "ms": 328,
+      "ms": 367,
       "note": null
     },
     {
